@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Sakshi Enterprises</title>
+  <meta name="description" content="Login or create an account at Sakshi Enterprises to order authentic Indian namkeen and snacks.">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <style>
+    :root {
+      --gold: #D4922A;
+      --gold-light: #F4C060;
+      --gold-dark: #8B5E1A;
+      --deep: #1A0F02;
+      --warm: #2C1A06;
+      --cream: #FFF8EC;
+      --rust: #C0480A;
+      --saffron: #FF8C00;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--deep);
+      color: var(--cream);
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      padding: 1rem;
+    }
+
+    /* ── ANIMATED BACKGROUND ── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background:
+        radial-gradient(ellipse at 25% 15%, rgba(212,146,42,0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 75% 85%, rgba(192,72,10,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(244,192,96,0.05) 0%, transparent 40%);
+      animation: bgShift 20s ease-in-out infinite alternate;
+      z-index: 0;
+      pointer-events: none;
+    }
+    @keyframes bgShift {
+      0% { transform: translate(0,0) rotate(0deg); }
+      100% { transform: translate(-3%,-3%) rotate(2deg); }
+    }
+
+    /* ── FLOATING PARTICLES ── */
+    .bg-particle {
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+      background: radial-gradient(circle, rgba(212,146,42,0.6), transparent);
+      animation: particleDrift linear infinite;
+      z-index: 0;
+    }
+    @keyframes particleDrift {
+      0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+      10% { opacity: 0.4; }
+      90% { opacity: 0.15; }
+      100% { transform: translateY(-50px) rotate(360deg); opacity: 0; }
+    }
+
+    /* ── MAIN CONTAINER ── */
+    .auth-container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 440px;
+      animation: cardEntrance 0.8s cubic-bezier(0.23,1,0.32,1) both;
+    }
+    @keyframes cardEntrance {
+      from { opacity: 0; transform: translateY(40px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ── AUTH CARD ── */
+    .auth-card {
+      background: linear-gradient(135deg, rgba(255,248,236,0.06) 0%, rgba(255,248,236,0.015) 100%);
+      border: 1px solid rgba(212,146,42,0.2);
+      border-top-color: rgba(255,255,255,0.12);
+      border-left-color: rgba(255,255,255,0.06);
+      border-radius: 24px;
+      padding: 2.8rem 2.4rem 2.2rem;
+      backdrop-filter: blur(24px);
+      box-shadow:
+        0 40px 100px rgba(0,0,0,0.5),
+        0 0 80px rgba(212,146,42,0.04),
+        inset 0 1px 2px rgba(255,255,255,0.06);
+    }
+
+    /* ── LOGO ── */
+    .auth-logo {
+      text-align: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--gold-light);
+      margin-bottom: 0.2rem;
+      letter-spacing: 0.01em;
+    }
+    .auth-logo span { color: var(--saffron); font-style: italic; }
+
+    .auth-tagline {
+      text-align: center;
+      font-size: 0.7rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(255,248,236,0.3);
+      margin-bottom: 2.2rem;
+    }
+
+    /* ── TABS ── */
+    .auth-tabs {
+      display: flex;
+      background: rgba(255,248,236,0.04);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(212,146,42,0.1);
+    }
+    .auth-tab {
+      flex: 1;
+      padding: 0.75rem;
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      color: rgba(255,248,236,0.45);
+      background: transparent;
+      border: none;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.23,1,0.32,1);
+      font-family: 'DM Sans', sans-serif;
+    }
+    .auth-tab.active {
+      background: linear-gradient(135deg, var(--gold), var(--saffron));
+      color: var(--deep);
+      font-weight: 600;
+      box-shadow: 0 4px 18px rgba(212,146,42,0.35);
+    }
+    .auth-tab:not(.active):hover { color: var(--gold-light); }
+
+    /* ── FORM FIELDS ── */
+    .form-field {
+      margin-bottom: 1.3rem;
+    }
+    .form-field label {
+      display: block;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,248,236,0.5);
+      margin-bottom: 0.45rem;
+    }
+    .form-field input {
+      width: 100%;
+      background: rgba(255,248,236,0.04);
+      border: 1px solid rgba(212,146,42,0.18);
+      color: var(--cream);
+      padding: 0.9rem 1.1rem;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.35s, background 0.35s, box-shadow 0.35s, transform 0.25s;
+    }
+    .form-field input:focus {
+      border-color: var(--gold);
+      background: rgba(255,248,236,0.07);
+      box-shadow: 0 0 25px rgba(212,146,42,0.1);
+      transform: translateY(-1px);
+    }
+    .form-field input::placeholder { color: rgba(255,248,236,0.18); }
+
+    /* ── PASSWORD TOGGLE ── */
+    .password-wrap { position: relative; }
+    .password-wrap input { padding-right: 3.2rem; }
+    .toggle-pw {
+      position: absolute;
+      right: 0.8rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: rgba(255,248,236,0.35);
+      cursor: pointer;
+      font-size: 1.15rem;
+      padding: 0.3rem;
+      transition: color 0.3s, transform 0.2s;
+      line-height: 1;
+    }
+    .toggle-pw:hover { color: var(--gold-light); transform: translateY(-50%) scale(1.1); }
+
+    /* ── MESSAGE ── */
+    .auth-msg {
+      font-size: 0.8rem;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      display: none;
+      animation: msgFade 0.35s ease;
+      line-height: 1.5;
+    }
+    .auth-msg.error {
+      display: block;
+      background: rgba(192,72,10,0.12);
+      border: 1px solid rgba(192,72,10,0.3);
+      color: #ff7b5a;
+    }
+    .auth-msg.success {
+      display: block;
+      background: rgba(37,211,102,0.1);
+      border: 1px solid rgba(37,211,102,0.3);
+      color: #25D366;
+    }
+    @keyframes msgFade {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── SUBMIT BUTTON ── */
+    .auth-btn {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, var(--gold), var(--saffron));
+      color: var(--deep);
+      border: none;
+      border-radius: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+      box-shadow: 0 4px 25px rgba(212,146,42,0.3);
+      position: relative;
+      overflow: hidden;
+      margin-top: 0.3rem;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .auth-btn::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 0; height: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      transform: translate(-50%,-50%);
+      transition: width 0.6s, height 0.6s;
+    }
+    .auth-btn:hover::before { width: 400px; height: 400px; }
+    .auth-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 35px rgba(212,146,42,0.45);
+    }
+    .auth-btn:active { transform: translateY(0) scale(0.98); }
+    .auth-btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    .auth-btn .spinner {
+      display: none;
+      width: 22px; height: 22px;
+      border: 2.5px solid rgba(26,15,2,0.25);
+      border-top-color: var(--deep);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    .auth-btn.loading .btn-label { display: none; }
+    .auth-btn.loading .spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── BACK LINK ── */
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 1.8rem;
+      color: rgba(255,248,236,0.35);
+      font-size: 0.8rem;
+      text-decoration: none;
+      letter-spacing: 0.05em;
+      transition: color 0.3s, transform 0.2s;
+    }
+    .back-link:hover { color: var(--gold-light); transform: translateY(-1px); }
+
+    /* ── TRUST BADGE ── */
+    .trust-row {
+      display: flex;
+      justify-content: center;
+      gap: 1.8rem;
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(212,146,42,0.08);
+    }
+    .trust-item { text-align: center; }
+    .trust-item .icon { font-size: 1.1rem; margin-bottom: 0.2rem; }
+    .trust-item .text {
+      font-size: 0.55rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,248,236,0.3);
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 480px) {
+      .auth-card { padding: 2.2rem 1.6rem 1.8rem; border-radius: 18px; }
+      .auth-logo { font-size: 1.6rem; }
+      .form-field input { min-height: 48px; font-size: 16px; }
+      .auth-btn { min-height: 48px; }
+    }
+    @media (max-width: 360px) {
+      .auth-card { padding: 1.8rem 1.2rem 1.5rem; }
+      .auth-logo { font-size: 1.4rem; }
+      .trust-row { gap: 1rem; }
+    }
+
+    /* ── PREMIUM TOAST NOTIFICATION ── */
+    .toast-container {
+      position: fixed;
+      top: 2rem;
+      right: 2rem;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      pointer-events: none;
+    }
+    .toast {
+      background: linear-gradient(135deg, rgba(44,26,6,0.96) 0%, rgba(26,15,2,0.98) 100%);
+      border: 1px solid rgba(212,146,42,0.3);
+      border-left: 4px solid var(--gold);
+      border-radius: 16px;
+      padding: 1.2rem 1.6rem;
+      min-width: 320px;
+      max-width: 420px;
+      backdrop-filter: blur(24px);
+      box-shadow: 
+        0 20px 40px rgba(0,0,0,0.6),
+        0 0 30px rgba(212,146,42,0.05);
+      color: var(--cream);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      transform: translateX(120%);
+      transition: transform 0.5s cubic-bezier(0.23,1,0.32,1), opacity 0.5s;
+      opacity: 0;
+      pointer-events: auto;
+    }
+    .toast.show {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    .toast.success {
+      border-left-color: #25D366;
+      border-color: rgba(37,211,102,0.3);
+      box-shadow: 
+        0 20px 40px rgba(0,0,0,0.6),
+        0 0 30px rgba(37,211,102,0.05);
+    }
+    .toast.error {
+      border-left-color: #ff7b5a;
+      border-color: rgba(192,72,10,0.3);
+      box-shadow: 
+        0 20px 40px rgba(0,0,0,0.6),
+        0 0 30px rgba(192,72,10,0.05);
+    }
+    .toast-icon {
+      font-size: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: toastBounce 2s infinite ease-in-out;
+    }
+    .toast-body {
+      flex: 1;
+    }
+    .toast-title {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--gold-light);
+      margin-bottom: 0.25rem;
+    }
+    .toast.success .toast-title {
+      color: #25D366;
+    }
+    .toast.error .toast-title {
+      color: #ff7b5a;
+    }
+    .toast-message {
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: rgba(255,248,236,0.7);
+    }
+    .toast-close {
+      background: none;
+      border: none;
+      color: rgba(255,248,236,0.35);
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: color 0.3s, transform 0.2s;
+      padding: 0.2rem;
+      line-height: 1;
+    }
+    .toast-close:hover {
+      color: var(--cream);
+      transform: scale(1.2);
+    }
+    @keyframes toastBounce {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-5px) scale(1.05); }
+    }
+
+    @media (max-width: 480px) {
+      .toast-container {
+        top: auto;
+        bottom: 1.5rem;
+        right: 1rem;
+        left: 1rem;
+      }
+      .toast {
+        min-width: 0;
+        width: 100%;
+      }
+    }
+
+  </style>
+</head>
+
+<body>
+  <!-- Toast Container for Custom Alerts -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-logo">Sakshi <span>Enterprises</span></div>
+      <div class="auth-tagline">Authentic Indian Namkeen Since 2005</div>
+
+      <!-- TABS -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login" id="tabLogin">Login</button>
+        <button class="auth-tab" data-tab="signup" id="tabSignup">Sign Up</button>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <form id="loginForm" autocomplete="on">
+        <div class="form-field">
+          <label>✉️ Email Address</label>
+          <input type="email" id="loginEmail" placeholder="Enter your email address" autocomplete="email" required>
+        </div>
+        <div class="form-field">
+          <label>🔒 Password</label>
+          <div class="password-wrap">
+            <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password" required>
+            <button type="button" class="toggle-pw" aria-label="Show password">👁</button>
+          </div>
+        </div>
+        <div class="auth-msg" id="loginMsg"></div>
+        <button type="submit" class="auth-btn" id="loginBtn">
+          <span class="btn-label">Login →</span>
+          <div class="spinner"></div>
+        </button>
+      </form>
+
+      <!-- SIGNUP FORM -->
+      <form id="signupForm" style="display:none" autocomplete="on">
+        <div class="form-field">
+          <label>👤 Full Name</label>
+          <input type="text" id="signupName" placeholder="Your full name" autocomplete="name" required>
+        </div>
+        <div class="form-field">
+          <label>✉️ Email Address</label>
+          <input type="email" id="signupEmail" placeholder="Enter your email address" autocomplete="email" required>
+        </div>
+        <div class="form-field">
+          <label>🔒 Password</label>
+          <div class="password-wrap">
+            <input type="password" id="signupPassword" placeholder="Min 6 characters" autocomplete="new-password" required>
+            <button type="button" class="toggle-pw" aria-label="Show password">👁</button>
+          </div>
+        </div>
+        <div class="form-field">
+          <label>🔒 Confirm Password</label>
+          <div class="password-wrap">
+            <input type="password" id="signupConfirm" placeholder="Re-enter password" autocomplete="new-password" required>
+            <button type="button" class="toggle-pw" aria-label="Show password">👁</button>
+          </div>
+        </div>
+        <div class="auth-msg" id="signupMsg"></div>
+        <button type="submit" class="auth-btn" id="signupBtn">
+          <span class="btn-label">Create Account →</span>
+          <div class="spinner"></div>
+        </button>
+      </form>
+
+      <a href="index.html" class="back-link">← Back to Store</a>
+
+      <!-- TRUST BADGES -->
+      <div class="trust-row">
+        <div class="trust-item">
+          <div class="icon">🔒</div>
+          <div class="text">Secure</div>
+        </div>
+        <div class="trust-item">
+          <div class="icon">☁️</div>
+          <div class="text">Cloud Synced</div>
+        </div>
+        <div class="trust-item">
+          <div class="icon">📱</div>
+          <div class="text">Any Device</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── NATIVE DEBUGGING ALERT ──
+    window.onerror = function(message, source, lineno, colno, error) {
+      showCustomToast("System Error", `${message} (Line: ${lineno})`, "error", 10000);
+      return false;
+    };
+
+    // ── PREMIUM CUSTOM TOAST NOTIFICATION ──
+    function showCustomToast(title, message, type = 'success', duration = 8000) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      
+      const icon = type === 'success' ? '✉️' : '⚠️';
+      
+      toast.innerHTML = `
+        <div class="toast-icon">${icon}</div>
+        <div class="toast-body">
+          <div class="toast-title">${title}</div>
+          <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close">&times;</button>
+      `;
+      
+      toast.querySelector('.toast-close').addEventListener('click', () => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 500);
+      });
+      
+      container.appendChild(toast);
+      
+      // Trigger reflow
+      void toast.offsetWidth;
+      toast.classList.add('show');
+      
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.classList.remove('show');
+          setTimeout(() => toast.remove(), 500);
+        }
+      }, duration);
+    }
+
+    // ── FIREBASE INIT ──
+    const firebaseConfig = {
+      apiKey: "AIzaSyDRohj1qadsusBtEMV2I2qsQ0LnzC0hD3s",
+      authDomain: "sakshi-enterprises-1ea71.firebaseapp.com",
+      projectId: "sakshi-enterprises-1ea71",
+      storageBucket: "sakshi-enterprises-1ea71.firebasestorage.app",
+      messagingSenderId: "224360282615",
+      appId: "1:224360282615:web:ec271c18c70d50826b96f2",
+      measurementId: "G-Y08KN55ZV7"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // If already logged in & email verified → redirect to store
+    let authChecked = false;
+    auth.onAuthStateChanged(async user => {
+      if (user && !authChecked) {
+        if (user.emailVerified) {
+          setLocalAuthData(user);
+          window.location.href = 'index.html';
+        } else {
+          await auth.signOut();
+        }
+      }
+      authChecked = true;
+    });
+
+    function setLocalAuthData(user) {
+      localStorage.setItem('sakshi_loggedIn', 'true');
+      localStorage.setItem('sakshi_currentUser', user.email);
+      localStorage.setItem('sakshi_userName', user.displayName || '');
+    }
+
+    // ── BACKGROUND PARTICLES ──
+    (function spawnParticles() {
+      for (let i = 0; i < 5; i++) {
+        const p = document.createElement('div');
+        p.className = 'bg-particle';
+        const size = Math.random() * 4 + 2;
+        const dur = Math.random() * 10 + 10;
+        const delay = Math.random() * 8;
+        p.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}vw;animation-duration:${dur}s;animation-delay:${delay}s;`;
+        document.body.appendChild(p);
+      }
+    })();
+
+    // ── TAB SWITCHING ──
+    const tabs = document.querySelectorAll('.auth-tab');
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        if (tab.dataset.tab === 'login') {
+          loginForm.style.display = '';
+          signupForm.style.display = 'none';
+        } else {
+          loginForm.style.display = 'none';
+          signupForm.style.display = '';
+        }
+        // Clear messages
+        document.querySelectorAll('.auth-msg').forEach(m => { m.style.display = 'none'; m.className = 'auth-msg'; });
+      });
+    });
+
+    // ── PASSWORD TOGGLE ──
+    document.querySelectorAll('.toggle-pw').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = btn.parentElement.querySelector('input');
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.textContent = show ? '🙈' : '👁';
+      });
+    });
+
+    // ── HELPERS ──
+    function showMsg(id, text, type = 'error') {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.className = 'auth-msg ' + type;
+    }
+    function hideMsg(id) {
+      document.getElementById(id).style.display = 'none';
+      document.getElementById(id).className = 'auth-msg';
+    }
+    function setLoading(btn, on) {
+      btn.classList.toggle('loading', on);
+      btn.disabled = on;
+    }
+    function firebaseError(code) {
+      const map = {
+        'auth/email-already-in-use': 'Yeh email address pehle se hi registered hai! Please "Login" tab par click karke login karein.',
+        'auth/wrong-password': 'Galat password! Please sahi password daalein.',
+        'auth/invalid-credential': 'Galat email address ya password! Agar aap registered nahi hain, toh pehle "Sign Up" tab me jaakar account banayein.',
+        'auth/user-not-found': 'Is email address se koi account nahi mila! Please pehle "Sign Up" tab me jaakar register/account banayein.',
+        'auth/weak-password': 'Password bahut kamzor hai! Kam se kam 6 characters ka password rakhein.',
+        'auth/too-many-requests': 'Bahut saare attempts fail hue hain! Security ke liye thodi der baad try karein.',
+        'auth/network-request-failed': 'Network error! Please apna internet connection check karein.',
+        'auth/invalid-email': 'Email address ka format sahi nahi hai.',
+        'auth/operation-not-allowed': 'Firebase Console me "Email/Password" sign-in method disabled hai. Please Firebase Console -> Authentication -> Sign-in method me jaake Email/Password ko Enable karein.',
+        'auth/unauthorized-domain': 'Security restrictions ki wajah se directly double-click karke login kaam nahi karega. Please local server ya hosting domain par test karein.'
+      };
+      return map[code] || `Error (${code}): Kuch wrong hua hai. Please verify karke firse try karein.`;
+    }
+
+    function validateEmail(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(email);
+    }
+
+    // ── LOGIN ──
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideMsg('loginMsg');
+
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+
+      if (!validateEmail(email)) { showMsg('loginMsg', 'Please enter a valid email address.'); return; }
+      if (password.length < 6) { showMsg('loginMsg', 'Password must be at least 6 characters.'); return; }
+
+      const btn = document.getElementById('loginBtn');
+      setLoading(btn, true);
+
+      try {
+        const result = await auth.signInWithEmailAndPassword(email, password);
+        
+        if (!result.user.emailVerified) {
+          showCustomToast("Email Not Verified ⚠️", "Aapka email abhi verified nahi hai! Check your inbox for the link.", "error", 10000);
+          showMsg('loginMsg', 'Aapka email verify nahi hua hai! Inbox/Spam me link check karein.');
+          
+          // Create dynamic resend button
+          const resendContainerId = 'resendVerifyContainer';
+          let resendContainer = document.getElementById(resendContainerId);
+          if (!resendContainer) {
+            resendContainer = document.createElement('div');
+            resendContainer.id = resendContainerId;
+            resendContainer.style.cssText = 'margin-top: 1rem; text-align: center;';
+            resendContainer.innerHTML = `
+              <button type="button" id="resendVerificationBtn" class="auth-btn" style="background: transparent; border: 1px solid var(--gold); color: var(--gold-light); min-height: 40px; font-size: 0.8rem; margin-top: 0.5rem; box-shadow: none;">
+                Resend Verification Link ✉️
+              </button>
+            `;
+            loginForm.appendChild(resendContainer);
+            
+            document.getElementById('resendVerificationBtn').addEventListener('click', async () => {
+              const resendBtn = document.getElementById('resendVerificationBtn');
+              resendBtn.disabled = true;
+              resendBtn.textContent = 'Sending... ✉️';
+              try {
+                await result.user.sendEmailVerification();
+                showCustomToast("Link Sent! ✉️", "Verification link successfully resend kar diya gaya hai. Please check your inbox/spam folder.", "success", 8000);
+                resendBtn.textContent = 'Verification Link Sent! ✓';
+              } catch (resendErr) {
+                console.error(resendErr);
+                showCustomToast("Error ⚠️", firebaseError(resendErr.code), "error", 8000);
+                resendBtn.disabled = false;
+                resendBtn.textContent = 'Resend Verification Link ✉️';
+              }
+            });
+          } else {
+            const resendBtn = document.getElementById('resendVerificationBtn');
+            resendBtn.disabled = false;
+            resendBtn.textContent = 'Resend Verification Link ✉️';
+          }
+          
+          await auth.signOut();
+          setLoading(btn, false);
+          return;
+        }
+
+        // Remove resend button container if verified login succeeded
+        const resendContainer = document.getElementById('resendVerifyContainer');
+        if (resendContainer) resendContainer.remove();
+
+        setLocalAuthData(result.user);
+        showMsg('loginMsg', '✓ Login successful! Redirecting...', 'success');
+        setTimeout(() => { window.location.href = 'index.html'; }, 700);
+      } catch (err) {
+        console.error(err);
+        showCustomToast("Login Error ⚠️", firebaseError(err.code), "error", 8000);
+        showMsg('loginMsg', firebaseError(err.code));
+        setLoading(btn, false);
+      }
+    });
+
+    // ── SIGNUP ──
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideMsg('signupMsg');
+
+      const name = document.getElementById('signupName').value.trim();
+      const email = document.getElementById('signupEmail').value.trim();
+      const password = document.getElementById('signupPassword').value;
+      const confirm = document.getElementById('signupConfirm').value;
+
+      if (name.length < 2) { showMsg('signupMsg', 'Please enter your full name (min 2 characters).'); return; }
+      if (!validateEmail(email)) { showMsg('signupMsg', 'Please enter a valid email address.'); return; }
+      if (password.length < 6) { showMsg('signupMsg', 'Password must be at least 6 characters.'); return; }
+      if (password !== confirm) { showMsg('signupMsg', 'Passwords do not match.'); return; }
+
+      const btn = document.getElementById('signupBtn');
+      setLoading(btn, true);
+
+      try {
+        const result = await auth.createUserWithEmailAndPassword(email, password);
+        await result.user.updateProfile({ displayName: name });
+        await result.user.sendEmailVerification();
+        await auth.signOut();
+
+        showCustomToast("Verification Email Sent! ✉️", `Verification link aapke email (${email}) par bhej diya gaya hai. Please email verify karke hi login karein. Check your Spam folder too!`, "success", 15000);
+        showMsg('signupMsg', '✓ Verification link sent! Please check your email and verify your account.', 'success');
+
+        // Clear signup fields
+        document.getElementById('signupName').value = '';
+        document.getElementById('signupEmail').value = '';
+        document.getElementById('signupPassword').value = '';
+        document.getElementById('signupConfirm').value = '';
+
+        // Switch to login tab automatically after 3 seconds
+        setTimeout(() => {
+          tabs[0].click(); // Tab Login
+          showMsg('loginMsg', '✓ Please verify your email first, then Login here.', 'success');
+        }, 3000);
+
+      } catch (err) {
+        console.error(err);
+        showCustomToast("SignUp Error ⚠️", firebaseError(err.code), "error", 8000);
+        showMsg('signupMsg', firebaseError(err.code));
+      } finally {
+        setLoading(btn, false);
+      }
+    });
+  </script>
+</body>
+</html>
